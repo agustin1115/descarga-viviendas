@@ -1,0 +1,77 @@
+{
+ "fecha": "2026-11-14",
+ "start": {
+  "name": "",
+  "loc": null
+ },
+ "houses": {
+  "1": {
+   "name": "Daiana Ledezma",
+   "loc": {
+    "lat": -34.869225,
+    "lng": -58.210137
+   },
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": [],
+   "movedTo": null,
+   "from": null
+  },
+  "2": {
+   "name": "Maria Tamola",
+   "loc": {
+    "lat": -34.869842,
+    "lng": -58.210845
+   },
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": [],
+   "movedTo": null,
+   "from": null
+  },
+  "3": {
+   "name": "Maria Elena Sanchez",
+   "loc": {
+    "lat": -34.871232,
+    "lng": -58.2143
+   },
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": [],
+   "movedTo": null,
+   "from": null
+  },
+  "4": {
+   "name": "Silvina Valle Rosa",
+   "loc": {
+    "lat": -34.87132,
+    "lng": -58.205416
+   },
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": [],
+   "movedTo": null,
+   "from": null
+  }
+ },
+ "t": {
+  "fecha": 1793893356742.0,
+  "houses.1.loc": 1793893402807.0,
+  "houses.1.name": 1793893407341.0,
+  "houses.2.loc": 1793893422640.0,
+  "houses.2.name": 1793893426887.0,
+  "houses.3.loc": 1793893440572.0,
+  "houses.3.name": 1793893448349.0,
+  "houses.4.loc": 1793893452388.0,
+  "houses.4.name": 1793893463467.0
+ },
+ "deleted": []
+}

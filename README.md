@@ -4,6 +4,20 @@ Página para coordinar la descarga del camión con las piezas de 6 viviendas: el
 
 **Abrir:** https://agustin1115.github.io/descarga-viviendas/
 
+## Archivos
+
+- `index.html`: la estructura de la página.
+- `css/style.css`: los estilos, con los colores y tipografías del design system de Techo para Argentina.
+- `js/app.js`: el funcionamiento (mapa, recorrido, piezas, fotos y sincronización con el repo).
+- `datos.json` y `fotos/`: lo cargado en **Descarga**.
+- `datos-cc.json` y `fotos-cc/`: lo cargado en **CC**.
+
+## Descarga y CC
+
+Son dos grupos que se descargan en fechas distintas: Descarga tiene las 6 casas de la planilla del camión y CC tiene 4 casas más. Cada grupo tiene su fecha, que se cambia arriba de todo.
+
+El botón **Cambiar fecha** de cada casa la pasa al otro grupo con todos sus datos (ubicación, piezas marcadas, comentarios y fotos). En el grupo que deja, sus paradas se saltean. Si vuelve, recupera su lugar. Hace falta señal y la clave cargada.
+
 ## Cómo se guardan los datos
 
 - Lo que carga cada persona se guarda en `datos.json` y las fotos en `fotos/casa-N/`, dentro de este repo. Todos los que abren la página ven lo mismo.

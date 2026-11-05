@@ -70,6 +70,18 @@ details.card.next{border:2px solid var(--naranja-700)}
 details.card.done > summary{opacity:.75}
 details.card.moved{background:var(--techo-50);border-style:dashed;border-color:var(--techo-300)}
 .state.moved{background:#fff;border-color:var(--techo-300);color:var(--techo-900)}
+.grip{flex:none;display:grid;place-items:center;width:36px;height:48px;margin:-6px -4px -6px -10px;border-radius:6px;color:var(--techo-700);
+  cursor:grab;touch-action:none;user-select:none;-webkit-user-select:none}
+.grip svg{width:24px;height:24px;pointer-events:none}
+.grip:hover{color:var(--techo-900);background:var(--techo-100)}
+.grip-ico{display:inline-block;vertical-align:-5px;color:var(--techo-700)}
+.grip-ico svg{width:20px;height:20px}
+details.card.dragging{position:relative;z-index:5;border:2px solid var(--techo-500);box-shadow:0 10px 24px rgba(0,0,0,.25)}
+body.is-dragging,body.is-dragging *{cursor:grabbing!important;user-select:none;-webkit-user-select:none}
+.actions.order{align-items:center;border-top:1px solid var(--techo-100);padding-top:12px}
+.actions.order span{font-size:.8rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--tinta-suave);margin-right:4px}
+.actions.order .btn{flex:0 0 auto;min-height:40px;padding:6px 14px}
+.btn:disabled{opacity:.4;cursor:not-allowed;background:#fff}
 .title .tag{display:block;font-size:.75rem;font-weight:700;text-transform:uppercase;letter-spacing:.06em;color:var(--naranja-700);line-height:1.4}
 .chip{display:inline-grid;place-items:center;width:32px;height:32px;border-radius:50%;font-family:var(--font-titulos);font-weight:700;flex:none;border:2px solid rgba(0,0,0,.15)}
 .chip.start{background:var(--techo-900);color:#fff;border-radius:8px;border-color:var(--techo-900)}

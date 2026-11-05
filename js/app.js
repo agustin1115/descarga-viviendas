@@ -25,13 +25,23 @@ const STOPS_DESCARGA=[
 ];
 // CC no tiene planilla: una parada por casa con sus 9 piezas
 const STOPS_CC=MODES.cc.houses.map(h=>({h,del:['v1','v2','pl1','pl2','pm'],tras:['l1','l2','pu','ci']}));
+// b: número fijo de cada parada, para que el orden se pueda cambiar sin perder cuál es cuál
+STOPS_DESCARGA.forEach((s,i)=>s.b=i);STOPS_CC.forEach((s,i)=>s.b=i);
 let STOPS=MODE==='cc'?STOPS_CC:STOPS_DESCARGA;
+const baseStops=()=>MODE==='cc'?STOPS_CC:STOPS_DESCARGA;
+// S.order: el orden elegido por el equipo (lista de números fijos); si no hay o no cierra, va el original
+function applyOrder(){
+  const base=baseStops(), o=S.order;
+  const ok=Array.isArray(o)&&o.length===base.length&&new Set(o).size===base.length&&o.every(x=>base[x]);
+  STOPS=ok?o.map(x=>base[x]):base.slice();
+}
+function setOrder(o){S.order=o;save('order');renderAll()}
 
 /* ---------- Estado ---------- */
 // movedTo: a qué grupo y casa pasó; from: de dónde vino
 function blankHouse(){return {name:'',loc:null,pieces:{},comment:'',surplus:false,surplusDetail:'',photos:[],movedTo:null,from:null}}
 // t: cuándo se cambió cada campo (para combinar con lo de otros celulares); deleted: fotos borradas
-function blank(){const s={fecha:'',start:{name:'',loc:null},houses:{},t:{},deleted:[],dirty:false};HOUSES.forEach(h=>s.houses[h]=blankHouse());return s}
+function blank(){const s={fecha:'',order:null,start:{name:'',loc:null},houses:{},t:{},deleted:[],dirty:false};HOUSES.forEach(h=>s.houses[h]=blankHouse());return s}
 let S=blank();
 let tab='recorrido', placingFor=null, openKeys=new Set(), lastNext=null;
 const $=id=>document.getElementById(id);
@@ -39,7 +49,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const hName=h=>S.houses[h].name?`Casa ${h}: ${S.houses[h].name}`:`Casa ${h}`;
 const getObj=k=>k==='start'?S.start:S.houses[k];
 const objPath=k=>k==='start'?'start':`houses.${k}`;
-const allKeys=()=>['start.loc','start.name',...HOUSES.flatMap(h=>['loc','name','comment','surplus','surplusDetail','movedTo','from',...PIECES.map(([p])=>'pieces.'+p)].map(f=>`houses.${h}.${f}`))];
+const allKeys=()=>['order','start.loc','start.name',...HOUSES.flatMap(h=>['loc','name','comment','surplus','surplusDetail','movedTo','from',...PIECES.map(([p])=>'pieces.'+p)].map(f=>`houses.${h}.${f}`))];
 const getPath=(o,k)=>k.split('.').reduce((a,x)=>a==null?undefined:a[x],o);
 function setPath(o,k,v){const ks=k.split('.'),last=ks.pop();const t=ks.reduce((a,x)=>a[x]??(a[x]={}),o);if(v===undefined)delete t[last];else t[last]=v}
 
@@ -69,6 +79,7 @@ function normalize(d){
   if(d&&d.start) s.start=Object.assign(s.start,d.start);
   HOUSES.forEach(h=>{ if(d&&d.houses&&d.houses[h]) s.houses[h]=Object.assign(blankHouse(),d.houses[h]); });
   if(d&&d.fecha) s.fecha=d.fecha;
+  if(d&&d.order) s.order=d.order;
   if(d&&d.t) s.t=d.t; if(d&&d.deleted) s.deleted=d.deleted; if(d&&d.dirty) s.dirty=true;
   return s;
 }
@@ -123,7 +134,7 @@ function mergeRemote(R){
 }
 // Lo que se sube: sin las fotos en base64 (van como archivos) y sin las que todavía no se subieron
 function remoteCopy(){
-  const c=JSON.parse(JSON.stringify({fecha:S.fecha,start:S.start,houses:S.houses,t:S.t,deleted:S.deleted}));
+  const c=JSON.parse(JSON.stringify({fecha:S.fecha,order:S.order,start:S.start,houses:S.houses,t:S.t,deleted:S.deleted}));
   HOUSES.forEach(h=>{c.houses[h].photos=c.houses[h].photos.filter(p=>p.path).map(({data,...p})=>p)});
   return c;
 }
@@ -174,8 +185,8 @@ async function doSync(){
 // Si alguien está escribiendo, no se redibuja el panel hasta que termine
 function refresh(){
   const a=document.activeElement;
-  renderHeader();renderMap();
-  if(a&&a.closest&&a.closest('#content')&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)) panelStale=true; else renderPanel();
+  applyOrder();renderHeader();renderMap();
+  if(drag||a&&a.closest&&a.closest('#content')&&/INPUT|TEXTAREA|SELECT/.test(a.tagName)) panelStale=true; else renderPanel();
 }
 function setStatus(){
   const hh=d=>d.toLocaleTimeString('es-AR',{hour:'2-digit',minute:'2-digit'});
@@ -211,7 +222,7 @@ async function setMode(m){
   clearTimeout(saveTimer);clearTimeout(syncTimer);
   try{if(DB.db)await DB.set(MODES[MODE].db,S)}catch(e){}
   MODE=m;try{localStorage.setItem('modo',m)}catch(e){}
-  HOUSES=MODES[m].houses;STOPS=m==='cc'?STOPS_CC:STOPS_DESCARGA;
+  HOUSES=MODES[m].houses;
   S=blank();remoteSha=null;lastSync=null;syncErr='';editRev++;
   try{if(DB.db){const d=await DB.get(MODES[m].db);if(d)S=normalize(d)}}catch(e){}
   openKeys.clear();lastNext=null;stopPlacing();
@@ -442,7 +453,8 @@ function renderHeader(){
 
 function viewRecorrido(){
   const n=nextStop();
-  if(n!==lastNext){ if(lastNext!==null) openKeys.delete('stop-'+lastNext); if(n!==null) openKeys.add('stop-'+n); lastNext=n; }
+  const nb=n===null?null:STOPS[n].b;
+  if(nb!==lastNext){ if(lastNext!==null) openKeys.delete('stop-'+lastNext); if(nb!==null) openKeys.add('stop-'+nb); lastNext=nb; }
   const missing=activeHouses().filter(h=>!S.houses[h].loc);
   let out='';
   if(missing.length) out+=`<div class="note warn"><div><p>Faltan ubicar ${missing.length===1?'la casa':'las casas'} ${missing.join(', ')}. Cargalas en la pestaña Ubicaciones para ver el recorrido completo.</p><button class="btn" data-act="tab" data-t="ubicaciones">Cargar ubicaciones</button></div></div>`;
@@ -452,19 +464,25 @@ function viewRecorrido(){
   if(pts.length>=2) out+=`<div class="actions"><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/${pts.map(p=>p.lat+','+p.lng).join('/')}">Abrir recorrido completo en Google Maps</a></div>`;
   const twice=activeHouses().filter(h=>stopsOf(h).length>1);
   if(twice.length) out+=`<div class="note"><div><p>Las casas ${twice.slice(0,-1).join(', ')} y ${twice[twice.length-1]} reciben sus piezas en dos pasadas: lo que queda arriba en el camión baja primero y los pisos, puertas y ciegos de esas casas quedan abajo.</p></div></div>`;
+  const custom=STOPS.some((st,i)=>st.b!==i);
+  out+=`<div class="note"><div><p>Para cambiar el orden, arrastrá cada parada desde <span class="grip-ico" aria-hidden="true">${GRIP_SVG}</span> o usá Subir y Bajar adentro de la parada.</p>`+
+    (custom&&MODE==='descarga'?`<p>El orden de la planilla depende de cómo está cargado el camión: si lo cambiás, fijate que las piezas de cada parada queden a mano.</p>`:'')+
+    (custom?`<button class="btn" data-act="resetorder">Volver al orden ${MODE==='descarga'?'de la planilla':'original'}</button>`:'')+`</div></div>`;
+  const orderBtns=i=>`<div class="actions order"><span>Orden</span><button class="btn" data-act="up" data-i="${i}" ${i===0?'disabled':''}>Subir</button><button class="btn" data-act="down" data-i="${i}" ${i===STOPS.length-1?'disabled':''}>Bajar</button></div>`;
+  const grip=`<span class="grip" data-grip title="Arrastrá para cambiar el orden" aria-hidden="true">${GRIP_SVG}</span>`;
   out+=STOPS.map((st,i)=>{
-    const k='stop-'+i;
-    if(moved(st.h)) return details(k,'moved',`${chip(st.h)}<span class="title"><span class="tag">Parada ${i+1}</span>${esc(hName(st.h))}<small>No se descarga en esta fecha</small></span><span class="state moved">${movedLabel(st.h)}</span>`,movedBody(st.h));
+    const k='stop-'+st.b;
+    if(moved(st.h)) return details(k,'moved',`${grip}${chip(st.h)}<span class="title"><span class="tag">Parada ${i+1}</span>${esc(hName(st.h))}<small>No se descarga en esta fecha</small></span><span class="state moved">${movedLabel(st.h)}</span>`,movedBody(st.h)+orderBtns(i));
     const done=stopDone(i), second=STOPS.findIndex(s=>s.h===st.h)!==i, loc=S.houses[st.h].loc;
     const count=st.del.length+st.tras.length;
-    const sum=`${chip(st.h)}<span class="title"><span class="tag">Parada ${i+1}</span>${esc(hName(st.h))}<small>${second?'Segunda pasada, ':''}${count} piezas</small></span>`+
+    const sum=`${grip}${chip(st.h)}<span class="title"><span class="tag">Parada ${i+1}</span>${esc(hName(st.h))}<small>${second?'Segunda pasada, ':''}${count} piezas</small></span>`+
       `<span class="state ${done?'done':(i===n?'next':'')}">${done?'Descargada':(i===n?'Próxima':'Pendiente')}</span>`;
     const body=`<div class="group"><h3>De la parte delantera</h3>${st.del.map(p=>pieceRow(st.h,p)).join('')}</div>`+
       `<div class="group"><h3>De la parte trasera</h3>${st.tras.map(p=>pieceRow(st.h,p)).join('')}</div>`+
       `<div class="actions">${loc?navLink(loc)+`<button class="btn" data-act="focus" data-h="${st.h}">Ver en el mapa</button>`:`<button class="btn" data-act="tab" data-t="ubicaciones">Ubicar casa ${st.h}</button>`}`+
       `<button class="btn" data-act="gohouse" data-h="${st.h}">Comentarios y fotos</button>`+
       `<button class="btn" data-act="allok" data-i="${i}">Todo llegó bien</button>`+
-      `<button class="btn" data-act="move" data-h="${st.h}">Cambiar fecha</button></div>`;
+      `<button class="btn" data-act="move" data-h="${st.h}">Cambiar fecha</button></div>`+orderBtns(i);
     return details(k,(done?'done ':'')+(i===n?'next':''),sum,body);
   }).join('');
   return out;
@@ -523,7 +541,7 @@ function renderPanel(){
   document.querySelectorAll('#tabs button').forEach(b=>b.classList.toggle('on',b.dataset.t===tab));
   $('content').innerHTML={recorrido:viewRecorrido,casas:viewCasas,ubicaciones:viewUbicaciones,informe:viewInforme}[tab]();
 }
-function renderAll(){renderHeader();renderMap();renderPanel()}
+function renderAll(){applyOrder();renderHeader();renderMap();renderPanel()}
 
 /* ---------- Resumen e informe ---------- */
 function summaryText(){
@@ -594,6 +612,8 @@ content.addEventListener('click',async e=>{
   else if(a==='deltoken'){token='';try{localStorage.removeItem('gh-token')}catch(e){}renderPanel();setStatus()}
   else if(a==='syncnow'){sync()}
   else if(a==='move'){moveHouse(+h)}
+  else if(a==='up'||a==='down'){const o=STOPS.map(s=>s.b),i=+b.dataset.i,j=a==='up'?i-1:i+1;if(j<0||j>=o.length)return;[o[i],o[j]]=[o[j],o[i]];setOrder(o)}
+  else if(a==='resetorder'){setOrder(null)}
   else if(a==='gomode'){setMode(b.dataset.mode)}
 });
 content.addEventListener('input',e=>{
@@ -615,6 +635,43 @@ content.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset.loci
 $('importFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
   try{const d=normalize(JSON.parse(await f.text())),t=S.t,del=S.deleted;S=d;S.t=t;S.deleted=del;lastNext=null;save(...allKeys());renderAll();fitAll();toast('Respaldo cargado')}catch(err){toast('El archivo no es un respaldo válido')}e.target.value=''});
 $('viewer').onclick=()=>$('viewer').classList.remove('show');
+/* ---------- Arrastrar paradas ---------- */
+const GRIP_SVG='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>';
+// Con Pointer Events funciona igual con el dedo y con el mouse; la tarjeta se mueve en la lista mientras se arrastra
+let drag=null;
+const stopCards=()=>[...content.querySelectorAll('details[data-key^="stop-"]')];
+content.addEventListener('pointerdown',e=>{
+  const g=e.target.closest('[data-grip]');if(!g)return;
+  e.preventDefault();
+  drag={card:g.closest('details'),id:e.pointerId};
+  // Cerrada es más fácil de mover entre las demás
+  drag.card.open=false;
+  drag.card.classList.add('dragging');document.body.classList.add('is-dragging');
+  try{g.setPointerCapture(e.pointerId)}catch(err){}
+});
+content.addEventListener('pointermove',e=>{
+  if(!drag||e.pointerId!==drag.id)return;
+  const y=e.clientY, wide=innerWidth>=900, box=wide?document.querySelector('.panel').getBoundingClientRect():{top:0,bottom:innerHeight};
+  // Cerca del borde, la lista se desplaza sola
+  const dy=y<box.top+70?-14:y>box.bottom-70?14:0;
+  if(dy) wide?document.querySelector('.panel').scrollBy(0,dy):window.scrollBy(0,dy);
+  const others=stopCards().filter(c=>c!==drag.card);
+  const before=others.find(c=>{const r=c.getBoundingClientRect();return y<r.top+r.height/2});
+  if(before){if(before.previousElementSibling!==drag.card)before.before(drag.card)}
+  else{const last=others[others.length-1];if(last&&last.nextElementSibling!==drag.card)last.after(drag.card)}
+});
+function endDrag(e){
+  if(!drag||e.pointerId!==drag.id)return;
+  drag.card.classList.remove('dragging');document.body.classList.remove('is-dragging');drag=null;
+  const o=stopCards().map(c=>+c.dataset.key.slice(5));
+  if(o.join()!==STOPS.map(s=>s.b).join()){setOrder(o);toast('Orden de las paradas actualizado')}
+  else if(panelStale){panelStale=false;renderPanel()}
+}
+content.addEventListener('pointerup',endDrag);
+content.addEventListener('pointercancel',endDrag);
+// Tocar la manija no abre ni cierra la parada
+content.addEventListener('click',e=>{if(e.target.closest('[data-grip]'))e.preventDefault()},true);
+
 let toastT;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3500)}
 
 /* ---------- Inicio ---------- */

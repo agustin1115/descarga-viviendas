@@ -1,6 +1,95 @@
 {
- "start": {"name": "", "loc": null},
- "houses": {},
- "t": {},
+ "start": {
+  "name": "",
+  "loc": null
+ },
+ "houses": {
+  "1": {
+   "name": "Claudia Varela",
+   "loc": {
+    "lat": -34.870229,
+    "lng": -58.205802
+   },
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": []
+  },
+  "2": {
+   "name": "",
+   "loc": {
+    "lat": -34.868239,
+    "lng": -58.210115
+   },
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": []
+  },
+  "3": {
+   "name": "",
+   "loc": {
+    "lat": -34.871655,
+    "lng": -58.211467
+   },
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": []
+  },
+  "4": {
+   "name": "",
+   "loc": {
+    "lat": -34.872817,
+    "lng": -58.212712
+   },
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": []
+  },
+  "5": {
+   "name": "",
+   "loc": {
+    "lat": -34.872623,
+    "lng": -58.212594
+   },
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": []
+  },
+  "6": {
+   "name": "",
+   "loc": {
+    "lat": -34.867033,
+    "lng": -58.210491
+   },
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": []
+  }
+ },
+ "t": {
+  "houses.1.loc": 1793891896407,
+  "houses.1.name": 1793891896407,
+  "houses.2.loc": 1793891896407,
+  "houses.2.name": 1793891896407,
+  "houses.3.loc": 1793891896407,
+  "houses.3.name": 1793891896407,
+  "houses.4.loc": 1793891896407,
+  "houses.4.name": 1793891896407,
+  "houses.5.loc": 1793891896407,
+  "houses.5.name": 1793891896407,
+  "houses.6.loc": 1793891896407,
+  "houses.6.name": 1793891896407
+ },
  "deleted": []
 }

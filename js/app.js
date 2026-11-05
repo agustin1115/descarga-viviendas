@@ -87,10 +87,19 @@ function gh(path,opt={}){
   if(token) headers.Authorization='Bearer '+token;
   return fetch(API+path+(opt.method?'':`?ref=${BRANCH}`),{...opt,headers,cache:'no-store'});
 }
+// Sin clave se lee el archivo raw: la API sin clave permite solo 60 consultas por hora por conexión,
+// y se agotan enseguida si varios celulares comparten wifi o datos móviles. El raw puede tener hasta 5 minutos de atraso.
+const rawGet=f=>fetch(rawURL(f),{cache:'no-store'});
 async function pull(){
+  if(!token){
+    const r=await rawGet(MODES[MODE].file);
+    if(r.status===404) return null;
+    if(!r.ok) throw new Error('GitHub respondió '+r.status);
+    return r.json();
+  }
   const r=await gh(MODES[MODE].file);
   if(r.status===404){remoteSha=null;return null}
-  if(r.status===403||r.status===429) throw new Error(token?'GitHub rechazó la consulta':'GitHub limitó las consultas sin clave, probá en un rato');
+  if(r.status===403||r.status===429) throw new Error('GitHub rechazó la consulta');
   if(!r.ok) throw new Error('GitHub respondió '+r.status);
   const j=await r.json();remoteSha=j.sha;return JSON.parse(b64dec(j.content));
 }
@@ -175,7 +184,7 @@ function setStatus(){
   else if(!navigator.onLine) m=S.dirty?'Sin señal: los cambios se suben cuando vuelva':'Sin señal: mostrando lo último guardado';
   else if(syncErr) m='No se pudo sincronizar: '+syncErr;
   else if(syncing) m='Sincronizando…';
-  else if(!token) m=S.dirty?'Cambios solo en este celular: falta la clave (Informe)':'Solo lectura: para guardar, cargá la clave en Informe';
+  else if(!token) m=S.dirty?'Cambios solo en este celular: falta la clave (Informe)':'Solo lectura (puede tener hasta 5 min de atraso): para guardar, cargá la clave en Informe';
   else if(S.dirty) m='Guardando…';
   else m=lastSync?'Sincronizado con el equipo, '+hh(lastSync):'Conectando…';
   $('saved').textContent=m;
@@ -218,7 +227,7 @@ function cacheFecha(m,f){try{localStorage.setItem('fecha-'+m,f)}catch(e){}}
 function fechaOf(m){if(m===MODE)return S.fecha;try{return localStorage.getItem('fecha-'+m)||''}catch(e){return ''}}
 // La fecha del otro grupo se lee del repo para mostrarla en su botón
 async function peekFecha(m){
-  try{const r=await gh(MODES[m].file);if(!r.ok)return;const d=JSON.parse(b64dec((await r.json()).content));if(d.fecha){cacheFecha(m,d.fecha);renderHeader()}}catch(e){}
+  try{const r=await rawGet(MODES[m].file);if(!r.ok)return;const d=await r.json();if(d.fecha){cacheFecha(m,d.fecha);renderHeader()}}catch(e){}
 }
 $('fecha').addEventListener('change',e=>{S.fecha=e.target.value;save('fecha');renderHeader()});
 const otherMode=()=>MODE==='cc'?'descarga':'cc';

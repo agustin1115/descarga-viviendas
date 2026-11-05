@@ -1,6 +1,76 @@
 {
- "start": {"name": "", "loc": null},
- "houses": {},
- "t": {},
+ "start": {
+  "name": "",
+  "loc": null
+ },
+ "houses": {
+  "1": {
+   "name": "",
+   "loc": null,
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": []
+  },
+  "2": {
+   "name": "",
+   "loc": null,
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": []
+  },
+  "3": {
+   "name": "",
+   "loc": null,
+   "pieces": {
+    "v1": "dmg"
+   },
+   "comment": "prueba automática",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": [
+    {
+     "id": "prueba1",
+     "piece": "v1",
+     "ts": 1793891589443,
+     "path": "fotos/casa-3/prueba1.jpg"
+    }
+   ]
+  },
+  "4": {
+   "name": "",
+   "loc": null,
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": []
+  },
+  "5": {
+   "name": "",
+   "loc": null,
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": []
+  },
+  "6": {
+   "name": "",
+   "loc": null,
+   "pieces": {},
+   "comment": "",
+   "surplus": false,
+   "surplusDetail": "",
+   "photos": []
+  }
+ },
+ "t": {
+  "houses.3.pieces.v1": 1793891589443,
+  "houses.3.comment": 1793891589443
+ },
  "deleted": []
 }

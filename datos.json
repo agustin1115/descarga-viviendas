@@ -16,7 +16,9 @@
   "2": {
    "name": "",
    "loc": null,
-   "pieces": {},
+   "pieces": {
+    "v1": "ok"
+   },
    "comment": "",
    "surplus": false,
    "surplusDetail": "",
@@ -69,6 +71,7 @@
   }
  },
  "t": {
+  "houses.2.pieces.v1": 1793891619281,
   "houses.3.pieces.v1": 1793891589443,
   "houses.3.comment": 1793891589443
  },

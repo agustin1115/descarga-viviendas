@@ -76,6 +76,7 @@ details.card.moved{background:var(--techo-50);border-style:dashed;border-color:v
 .grip:hover{color:var(--techo-900);background:var(--techo-100)}
 .grip-ico{display:inline-block;vertical-align:-5px;color:var(--techo-700)}
 .grip-ico svg{width:20px;height:20px}
+details[data-key^="stop-"] > summary{-webkit-touch-callout:none;-webkit-user-select:none;user-select:none}
 details.card.dragging{position:relative;z-index:5;border:2px solid var(--techo-500);box-shadow:0 10px 24px rgba(0,0,0,.25)}
 body.is-dragging,body.is-dragging *{cursor:grabbing!important;user-select:none;-webkit-user-select:none}
 .actions.order{align-items:center;border-top:1px solid var(--techo-100);padding-top:12px}

@@ -465,7 +465,7 @@ function viewRecorrido(){
   const twice=activeHouses().filter(h=>stopsOf(h).length>1);
   if(twice.length) out+=`<div class="note"><div><p>Las casas ${twice.slice(0,-1).join(', ')} y ${twice[twice.length-1]} reciben sus piezas en dos pasadas: lo que queda arriba en el camión baja primero y los pisos, puertas y ciegos de esas casas quedan abajo.</p></div></div>`;
   const custom=STOPS.some((st,i)=>st.b!==i);
-  out+=`<div class="note"><div><p>Para cambiar el orden, arrastrá cada parada desde <span class="grip-ico" aria-hidden="true">${GRIP_SVG}</span> o usá Subir y Bajar adentro de la parada.</p>`+
+  out+=`<div class="note"><div><p>Para cambiar el orden, mantené apretada una parada (o su ícono <span class="grip-ico" aria-hidden="true">${GRIP_SVG}</span>) y arrastrala. También podés usar Subir y Bajar adentro de cada parada.</p>`+
     (custom&&MODE==='descarga'?`<p>El orden de la planilla depende de cómo está cargado el camión: si lo cambiás, fijate que las piezas de cada parada queden a mano.</p>`:'')+
     (custom?`<button class="btn" data-act="resetorder">Volver al orden ${MODE==='descarga'?'de la planilla':'original'}</button>`:'')+`</div></div>`;
   const orderBtns=i=>`<div class="actions order"><span>Orden</span><button class="btn" data-act="up" data-i="${i}" ${i===0?'disabled':''}>Subir</button><button class="btn" data-act="down" data-i="${i}" ${i===STOPS.length-1?'disabled':''}>Bajar</button></div>`;
@@ -637,40 +637,65 @@ $('importFile').addEventListener('change',async e=>{const f=e.target.files[0];if
 $('viewer').onclick=()=>$('viewer').classList.remove('show');
 /* ---------- Arrastrar paradas ---------- */
 const GRIP_SVG='<svg viewBox="0 0 24 24" fill="currentColor"><circle cx="9" cy="6" r="1.8"/><circle cx="15" cy="6" r="1.8"/><circle cx="9" cy="12" r="1.8"/><circle cx="15" cy="12" r="1.8"/><circle cx="9" cy="18" r="1.8"/><circle cx="15" cy="18" r="1.8"/></svg>';
-// Con Pointer Events funciona igual con el dedo y con el mouse; la tarjeta se mueve en la lista mientras se arrastra
-let drag=null;
+// En el celular se usan eventos de toque y se frena el desplazamiento de la página mientras se arrastra:
+// con Pointer Events el navegador cancela el arrastre en cuanto cree que el dedo quiere desplazar la lista.
+// Se arrastra desde la manija, o manteniendo apretada la parada medio segundo.
+let drag=null, press=null, skipClick=false;
 const stopCards=()=>[...content.querySelectorAll('details[data-key^="stop-"]')];
-content.addEventListener('pointerdown',e=>{
-  const g=e.target.closest('[data-grip]');if(!g)return;
-  e.preventDefault();
-  drag={card:g.closest('details'),id:e.pointerId};
+function startDrag(card){
+  drag={card};
   // Cerrada es más fácil de mover entre las demás
-  drag.card.open=false;
-  drag.card.classList.add('dragging');document.body.classList.add('is-dragging');
-  try{g.setPointerCapture(e.pointerId)}catch(err){}
-});
-content.addEventListener('pointermove',e=>{
-  if(!drag||e.pointerId!==drag.id)return;
-  const y=e.clientY, wide=innerWidth>=900, box=wide?document.querySelector('.panel').getBoundingClientRect():{top:0,bottom:innerHeight};
+  card.open=false;
+  card.classList.add('dragging');document.body.classList.add('is-dragging');
+  try{navigator.vibrate&&navigator.vibrate(25)}catch(e){}
+}
+function moveDrag(y){
+  const wide=innerWidth>=900, panel=document.querySelector('.panel'), box=wide?panel.getBoundingClientRect():{top:0,bottom:innerHeight};
   // Cerca del borde, la lista se desplaza sola
   const dy=y<box.top+70?-14:y>box.bottom-70?14:0;
-  if(dy) wide?document.querySelector('.panel').scrollBy(0,dy):window.scrollBy(0,dy);
+  if(dy) wide?panel.scrollBy(0,dy):window.scrollBy(0,dy);
   const others=stopCards().filter(c=>c!==drag.card);
   const before=others.find(c=>{const r=c.getBoundingClientRect();return y<r.top+r.height/2});
   if(before){if(before.previousElementSibling!==drag.card)before.before(drag.card)}
   else{const last=others[others.length-1];if(last&&last.nextElementSibling!==drag.card)last.after(drag.card)}
-});
-function endDrag(e){
-  if(!drag||e.pointerId!==drag.id)return;
+}
+function endDrag(){
+  if(!drag) return;
   drag.card.classList.remove('dragging');document.body.classList.remove('is-dragging');drag=null;
+  setTimeout(()=>{skipClick=false},400);
   const o=stopCards().map(c=>+c.dataset.key.slice(5));
   if(o.join()!==STOPS.map(s=>s.b).join()){setOrder(o);toast('Orden de las paradas actualizado')}
   else if(panelStale){panelStale=false;renderPanel()}
 }
-content.addEventListener('pointerup',endDrag);
-content.addEventListener('pointercancel',endDrag);
-// Tocar la manija no abre ni cierra la parada
-content.addEventListener('click',e=>{if(e.target.closest('[data-grip]'))e.preventDefault()},true);
+// Mouse
+content.addEventListener('pointerdown',e=>{
+  if(e.pointerType!=='mouse') return;
+  const g=e.target.closest('[data-grip]');if(!g) return;
+  e.preventDefault();startDrag(g.closest('details'));
+});
+document.addEventListener('pointermove',e=>{if(drag&&e.pointerType==='mouse')moveDrag(e.clientY)});
+document.addEventListener('pointerup',e=>{if(e.pointerType==='mouse')endDrag()});
+// Dedo
+content.addEventListener('touchstart',e=>{
+  if(e.touches.length>1) return;
+  const t=e.touches[0], g=e.target.closest('[data-grip]');
+  if(g){e.preventDefault();startDrag(g.closest('details'));return}
+  const sum=e.target.closest('details[data-key^="stop-"] > summary');
+  if(!sum||e.target.closest('button,a,input,select,textarea')) return;
+  press={x:t.clientX,y:t.clientY,timer:setTimeout(()=>{press=null;skipClick=true;startDrag(sum.parentElement)},450)};
+},{passive:false});
+document.addEventListener('touchmove',e=>{
+  const t=e.touches[0];
+  if(drag){e.preventDefault();moveDrag(t.clientY);return}
+  // Si el dedo se mueve antes del medio segundo, es un desplazamiento normal
+  if(press&&Math.hypot(t.clientX-press.x,t.clientY-press.y)>10){clearTimeout(press.timer);press=null}
+},{passive:false});
+function touchEnd(){if(press){clearTimeout(press.timer);press=null}endDrag()}
+document.addEventListener('touchend',touchEnd);
+document.addEventListener('touchcancel',touchEnd);
+// Mantener apretado no abre el menú del navegador, y soltar no abre ni cierra la parada
+content.addEventListener('contextmenu',e=>{if(drag||e.target.closest('details[data-key^="stop-"] > summary'))e.preventDefault()});
+content.addEventListener('click',e=>{if(skipClick||e.target.closest('[data-grip]')){e.preventDefault();e.stopPropagation();skipClick=false}},true);
 
 let toastT;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3500)}
 

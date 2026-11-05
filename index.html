@@ -27,10 +27,10 @@ header{padding:calc(12px + env(safe-area-inset-top,0px)) 16px 14px;background:va
 .head-row{display:flex;align-items:baseline;justify-content:space-between;gap:12px;flex-wrap:wrap}
 h1{font-family:var(--font-titulos);font-size:1.25rem;font-weight:700;line-height:1.25;margin:0}
 .saved{font-size:.875rem;color:var(--techo-100)}
-.load{display:grid;grid-template-columns:repeat(6,1fr);gap:6px;margin-top:10px}
-.load .slot{position:relative;height:32px;border-radius:6px;background:#fff;border:2px solid #fff;overflow:hidden}
-.load .fill{position:absolute;inset:auto 0 0 0;transition:height .3s}
-.load .slot span{position:relative;display:grid;place-items:center;height:100%;font-family:var(--font-titulos);font-weight:700;font-size:.875rem;color:var(--tinta)}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:4px;margin-top:10px;padding:4px;border-radius:8px;background:rgba(255,255,255,.12);max-width:420px}
+.modes button{border:0;border-radius:6px;background:transparent;color:#fff;font-weight:700;min-height:44px;cursor:pointer}
+.modes button:hover{background:rgba(255,255,255,.15)}
+.modes button.on{background:#fff;color:var(--techo-900);text-decoration:underline;text-decoration-thickness:2px;text-underline-offset:4px}
 .load-caption{font-size:.875rem;color:var(--techo-100);margin-top:6px}
 
 .mapwrap{position:relative;height:clamp(240px,42svh,440px)}
@@ -146,8 +146,7 @@ header :focus-visible,.placing :focus-visible,.tabs button.on:focus-visible{outl
   header{padding:calc(10px + env(safe-area-inset-top,0px)) 12px 10px}
   h1{font-size:1.125rem}
   .saved{font-size:.8rem}
-  .load{gap:4px;margin-top:8px}
-  .load .slot{height:28px}
+  .modes{margin-top:8px;max-width:none}
   .load-caption{font-size:.8rem;margin-top:4px}
   .mapbtns{right:8px;bottom:22px}
   .mapbtns button{padding:6px 10px;font-size:.875rem}
@@ -195,7 +194,10 @@ header :focus-visible,.placing :focus-visible,.tabs button.on:focus-visible{outl
       <h1>Descarga de viviendas</h1>
       <span class="saved" id="saved" role="status">Conectando…</span>
     </div>
-    <div class="load" id="load" aria-label="Avance por casa"></div>
+    <div class="modes" role="group" aria-label="Qué descarga ver">
+      <button data-mode="descarga">Descarga</button>
+      <button data-mode="cc">CC</button>
+    </div>
     <div class="load-caption" id="loadCaption"></div>
   </header>
 
@@ -225,14 +227,20 @@ header :focus-visible,.placing :focus-visible,.tabs button.on:focus-visible{outl
 <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.min.js"></script>
 <script>
 /* ---------- Datos de la planilla de carga ---------- */
-const HOUSES=[1,2,3,4,5,6];
+// Dos descargas separadas: la de la planilla (6 casas) y CC (4 casas que se descargan otro día)
+const MODES={
+  descarga:{label:'Descarga',houses:[1,2,3,4,5,6],file:'datos.json',fotos:'fotos',db:'state'},
+  cc:{label:'CC',houses:[1,2,3,4],file:'datos-cc.json',fotos:'fotos-cc',db:'state-cc'}
+};
+let MODE='descarga';try{if(MODES[localStorage.getItem('modo')])MODE=localStorage.getItem('modo')}catch(e){}
+let HOUSES=MODES[MODE].houses;
 const COLORS={1:'#f6b26b',2:'#f4cccc',3:'#76a5af',4:'#3d85c6',5:'#b4a7d6',6:'#6aa84f'};
 const INK={1:'#222222',2:'#222222',3:'#222222',4:'#ffffff',5:'#222222',6:'#ffffff'};
 const PIECES=[['v1','Ventana 1'],['v2','Ventana 2'],['l1','Lateral 1'],['l2','Lateral 2'],['pl1','Piso lateral 1'],['pl2','Piso lateral 2'],['pm','Piso medio'],['pu','Puerta'],['ci','Ciego']];
 const PLABEL=Object.fromEntries(PIECES);
 const STATES={ok:'Llegó',dmg:'Dañada',falta:'Falta'};
 // Orden de descarga según la planilla (de arriba hacia abajo en el camión)
-const STOPS=[
+const STOPS_DESCARGA=[
   {h:1, del:['v1','v2'],                    tras:['l1','l2']},
   {h:2, del:['v1','v2'],                    tras:['l1','l2']},
   {h:3, del:['v1','v2','pl1','pl2','pm'],   tras:['l1','l2','pu','ci']},
@@ -243,6 +251,9 @@ const STOPS=[
   {h:1, del:['pl1','pl2','pm'],             tras:['pu','ci']},
   {h:2, del:['pl1','pl2','pm'],             tras:['pu','ci']},
 ];
+// CC no tiene planilla: una parada por casa con sus 9 piezas
+const STOPS_CC=MODES.cc.houses.map(h=>({h,del:['v1','v2','pl1','pl2','pm'],tras:['l1','l2','pu','ci']}));
+let STOPS=MODE==='cc'?STOPS_CC:STOPS_DESCARGA;
 
 /* ---------- Estado ---------- */
 function blankHouse(){return {name:'',loc:null,pieces:{},comment:'',surplus:false,surplusDetail:'',photos:[]}}
@@ -255,7 +266,7 @@ const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&
 const hName=h=>S.houses[h].name?`Casa ${h}: ${S.houses[h].name}`:`Casa ${h}`;
 const getObj=k=>k==='start'?S.start:S.houses[k];
 const objPath=k=>k==='start'?'start':`houses.${k}`;
-const ALLKEYS=['start.loc','start.name',...HOUSES.flatMap(h=>['loc','name','comment','surplus','surplusDetail',...PIECES.map(([p])=>'pieces.'+p)].map(f=>`houses.${h}.${f}`))];
+const allKeys=()=>['start.loc','start.name',...HOUSES.flatMap(h=>['loc','name','comment','surplus','surplusDetail',...PIECES.map(([p])=>'pieces.'+p)].map(f=>`houses.${h}.${f}`))];
 const getPath=(o,k)=>k.split('.').reduce((a,x)=>a==null?undefined:a[x],o);
 function setPath(o,k,v){const ks=k.split('.'),last=ks.pop();const t=ks.reduce((a,x)=>a[x]??(a[x]={}),o);if(v===undefined)delete t[last];else t[last]=v}
 
@@ -275,7 +286,7 @@ function save(...keys){
 function saveLocal(){
   clearTimeout(saveTimer);
   saveTimer=setTimeout(async()=>{
-    try{ if(DB.db){await DB.set('state',S);localErr=''} else localErr='este navegador no permite guardar datos' }
+    try{ if(DB.db){await DB.set(MODES[MODE].db,S);localErr=''} else localErr='este navegador no permite guardar datos' }
     catch(e){ localErr=e.message }
     setStatus();
   },300);
@@ -303,7 +314,7 @@ function gh(path,opt={}){
   return fetch(API+path+(opt.method?'':`?ref=${BRANCH}`),{...opt,headers,cache:'no-store'});
 }
 async function pull(){
-  const r=await gh('datos.json');
+  const r=await gh(MODES[MODE].file);
   if(r.status===404){remoteSha=null;return null}
   if(r.status===403||r.status===429) throw new Error(token?'GitHub rechazó la consulta':'GitHub limitó las consultas sin clave, probá en un rato');
   if(!r.ok) throw new Error('GitHub respondió '+r.status);
@@ -333,36 +344,42 @@ function remoteCopy(){
   HOUSES.forEach(h=>{c.houses[h].photos=c.houses[h].photos.filter(p=>p.path).map(({data,...p})=>p)});
   return c;
 }
-async function uploadPhotos(){
+async function uploadPhotos(m){
   for(const h of HOUSES) for(const p of S.houses[h].photos){
     if(p.path||!p.data) continue;
-    const path=`fotos/casa-${h}/${p.id}.jpg`;
+    const path=`${MODES[m].fotos}/casa-${h}/${p.id}.jpg`;
     const r=await gh(path,{method:'PUT',body:JSON.stringify({message:`Foto de la casa ${h}`,content:p.data.split(',')[1],branch:BRANCH})});
+    if(m!==MODE) throw ABORT;
     if(r.ok||r.status===422){p.path=path;saveLocal()}
     else if(r.status===401||r.status===403) throw new Error('la clave no tiene permiso para guardar');
   }
 }
+const ABORT=new Error('cambio de modo');
 function scheduleSync(){clearTimeout(syncTimer);syncTimer=setTimeout(sync,2500);setStatus()}
 async function sync(){
   if(syncing){syncAgain=true;return}
   if(!navigator.onLine){setStatus();return}
   syncing=true;syncErr='';setStatus();
+  // Si se cambia de modo en el medio, se corta para no mezclar los datos de las dos descargas
+  const m=MODE;
   try{
     for(let i=0;i<3;i++){
       const R=await pull();
+      if(m!==MODE) throw ABORT;
       if(R&&mergeRemote(R)){saveLocal();refresh()}
       if(!token||!S.dirty) break;
-      await uploadPhotos();
+      await uploadPhotos(m);
       const rev=editRev;
-      const r=await gh('datos.json',{method:'PUT',body:JSON.stringify({message:'Actualizar datos de la descarga',
+      const r=await gh(MODES[m].file,{method:'PUT',body:JSON.stringify({message:`Actualizar datos de ${MODES[m].label}`,
         content:b64enc(JSON.stringify(remoteCopy(),null,1)),branch:BRANCH,...(remoteSha?{sha:remoteSha}:{})})});
+      if(m!==MODE) throw ABORT;
       if(r.ok){remoteSha=(await r.json()).content.sha;if(rev===editRev)S.dirty=false;saveLocal();break}
       if(r.status===401||r.status===403) throw new Error('la clave no sirve o no tiene permiso para guardar');
       // 409/422: otro celular guardó en el medio; se vuelve a leer, combinar y guardar
       if(r.status!==409&&r.status!==422) throw new Error('GitHub respondió '+r.status);
     }
     lastSync=new Date();
-  }catch(e){syncErr=navigator.onLine?e.message:''}
+  }catch(e){if(e!==ABORT)syncErr=navigator.onLine?e.message:''}
   syncing=false;setStatus();
   if(syncAgain){syncAgain=false;sync()}
 }
@@ -400,6 +417,20 @@ window.addEventListener('offline',setStatus);
 document.addEventListener('visibilitychange',()=>{if(!document.hidden)sync()});
 document.addEventListener('focusout',()=>setTimeout(()=>{if(panelStale&&!(document.activeElement&&document.activeElement.closest&&document.activeElement.closest('#content'))){panelStale=false;renderPanel()}},0));
 setInterval(()=>{if(!document.hidden)sync()},token?20000:60000);
+
+async function setMode(m){
+  if(m===MODE) return;
+  clearTimeout(saveTimer);clearTimeout(syncTimer);
+  try{if(DB.db)await DB.set(MODES[MODE].db,S)}catch(e){}
+  MODE=m;try{localStorage.setItem('modo',m)}catch(e){}
+  HOUSES=MODES[m].houses;STOPS=m==='cc'?STOPS_CC:STOPS_DESCARGA;
+  S=blank();remoteSha=null;lastSync=null;syncErr='';editRev++;
+  try{if(DB.db){const d=await DB.get(MODES[m].db);if(d)S=normalize(d)}}catch(e){}
+  openKeys.clear();lastNext=null;stopPlacing();
+  renderAll();if(allLocs().length)fitAll();
+  await sync();if(allLocs().length)fitAll();
+}
+document.querySelector('.modes').addEventListener('click',e=>{const b=e.target.closest('[data-mode]');if(b)setMode(b.dataset.mode)});
 
 /* ---------- Cálculos ---------- */
 function stopDone(i){const st=STOPS[i],p=S.houses[st.h].pieces;return [...st.del,...st.tras].every(x=>p[x])}
@@ -559,11 +590,10 @@ function navLink(loc,label='Ir con Google Maps'){return `<a class="btn primary" 
 function details(key,cls,summary,body){return `<details class="card ${cls}" data-key="${key}" ${openKeys.has(key)?'open':''}><summary>${summary}</summary><div class="body">${body}</div></details>`}
 
 function renderHeader(){
-  let tot=0;
-  $('load').innerHTML=HOUSES.map(h=>{const c=houseCount(h);tot+=c.recv;
-    return `<div class="slot" title="${esc(hName(h))}: ${c.recv} de 9"><div class="fill" style="height:${c.recv/9*100}%;background:${COLORS[h]}"></div><span>${h}</span></div>`}).join('');
+  document.querySelectorAll('.modes button').forEach(b=>{const on=b.dataset.mode===MODE;b.classList.toggle('on',on);b.setAttribute('aria-pressed',on)});
+  const tot=HOUSES.reduce((a,h)=>a+houseCount(h).recv,0);
   const n=nextStop();
-  $('loadCaption').textContent=`${tot} de 54 piezas recibidas. `+(n===null?'Descarga completa.':`Próxima parada: ${n+1}, ${hName(STOPS[n].h)}.`);
+  $('loadCaption').textContent=`${MODES[MODE].label}: ${HOUSES.length} casas, ${tot} de ${HOUSES.length*9} piezas recibidas. `+(n===null?'Descarga completa.':`Próxima parada: ${n+1}, ${hName(STOPS[n].h)}.`);
 }
 
 function viewRecorrido(){
@@ -576,7 +606,8 @@ function viewRecorrido(){
   const pts=[];if(S.start.loc)pts.push(S.start.loc);
   STOPS.forEach(st=>{const l=S.houses[st.h].loc;if(l){const p=pts[pts.length-1];if(!p||p.lat!==l.lat||p.lng!==l.lng)pts.push(l)}});
   if(pts.length>=2) out+=`<div class="actions"><a class="btn" target="_blank" rel="noopener" href="https://www.google.com/maps/dir/${pts.map(p=>p.lat+','+p.lng).join('/')}">Abrir recorrido completo en Google Maps</a></div>`;
-  out+=`<div class="note"><div><p>Las casas 1, 2 y 4 reciben sus piezas en dos pasadas: lo que queda arriba en el camión baja primero y los pisos, puertas y ciegos de esas casas quedan abajo.</p></div></div>`;
+  const twice=HOUSES.filter(h=>stopsOf(h).length>1);
+  if(twice.length) out+=`<div class="note"><div><p>Las casas ${twice.slice(0,-1).join(', ')} y ${twice[twice.length-1]} reciben sus piezas en dos pasadas: lo que queda arriba en el camión baja primero y los pisos, puertas y ciegos de esas casas quedan abajo.</p></div></div>`;
   out+=STOPS.map((st,i)=>{
     const done=stopDone(i), second=STOPS.findIndex(s=>s.h===st.h)!==i, k='stop-'+i, loc=S.houses[st.h].loc;
     const count=st.del.length+st.tras.length;
@@ -648,7 +679,7 @@ function renderAll(){renderHeader();renderMap();renderPanel()}
 /* ---------- Resumen e informe ---------- */
 function summaryText(){
   const d=new Date().toLocaleDateString('es-AR');
-  let t=`Descarga de viviendas, ${d}\n`;
+  let t=`${MODES[MODE].label} de viviendas, ${d}\n`;
   HOUSES.forEach(h=>{const H=S.houses[h],c=houseCount(h),p=H.pieces;
     const list=v=>PIECES.filter(([k])=>p[k]===v).map(([,l])=>l).join(', ');
     t+=`\n${hName(h)}: ${c.recv}/9 recibidas\n`;
@@ -678,7 +709,7 @@ function reportHTML(){
 <style>body{font-family:Arial,Helvetica,sans-serif;line-height:1.625;max-width:820px;margin:auto;padding:20px;color:#222}h1,h2{font-family:'Trebuchet MS',Verdana,sans-serif;color:#01579b}h2 span{display:inline-block;width:1.6em;text-align:center;border-radius:50%}
 table{border-collapse:collapse;width:100%}td{border-bottom:1px solid #e1f5fe;padding:4px 6px}.ph{display:grid;grid-template-columns:repeat(auto-fill,minmax(220px,1fr));gap:8px}
 img{width:100%;border:3px solid #4fc3f7;border-radius:8px}figure{margin:0}section{border-top:3px solid #4fc3f7;margin-top:24px;padding-top:6px;break-inside:avoid}</style></head>
-<body><h1>Informe de descarga</h1><p>Generado el ${d}</p>${sec}</body></html>`;
+<body><h1>Informe de ${MODES[MODE].label}</h1><p>Generado el ${d}</p>${sec}</body></html>`;
 }
 
 /* ---------- Eventos ---------- */
@@ -703,11 +734,11 @@ content.addEventListener('click',async e=>{
   else if(a==='view'){const p=S.houses[h].photos.find(p=>p.id===b.dataset.src);$('viewer').querySelector('img').src=photoSrc(p);$('viewer').classList.add('show')}
   else if(a==='copy'){copyText(summaryText())}
   else if(a==='share'){try{await navigator.share({title:'Descarga de viviendas',text:summaryText()})}catch(e){}}
-  else if(a==='report'){download(`informe-descarga-${new Date().toISOString().slice(0,10)}.html`,reportHTML(),'text/html')}
-  else if(a==='backup'){download(`respaldo-descarga-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(S),'application/json');toast('Respaldo descargado')}
+  else if(a==='report'){download(`informe-${MODE}-${new Date().toISOString().slice(0,10)}.html`,reportHTML(),'text/html')}
+  else if(a==='backup'){download(`respaldo-${MODE}-${new Date().toISOString().slice(0,10)}.json`,JSON.stringify(S),'application/json');toast('Respaldo descargado')}
   else if(a==='import'){$('importFile').click()}
   else if(a==='reset'){if(confirm('Esto borra ubicaciones, marcas, comentarios y fotos para todo el equipo. ¿Seguir?')){
-    const t=S.t,del=[...S.deleted,...HOUSES.flatMap(h=>S.houses[h].photos.map(p=>p.id))];S=blank();S.t=t;S.deleted=del;openKeys.clear();lastNext=null;save(...ALLKEYS);renderAll()}}
+    const t=S.t,del=[...S.deleted,...HOUSES.flatMap(h=>S.houses[h].photos.map(p=>p.id))];S=blank();S.t=t;S.deleted=del;openKeys.clear();lastNext=null;save(...allKeys());renderAll()}}
   else if(a==='savetoken'){setToken(content.querySelector('[data-tokenin]').value)}
   else if(a==='deltoken'){token='';try{localStorage.removeItem('gh-token')}catch(e){}renderPanel();setStatus()}
   else if(a==='syncnow'){sync()}
@@ -729,13 +760,13 @@ content.addEventListener('change',async e=>{
 });
 content.addEventListener('keydown',e=>{if(e.key==='Enter'&&e.target.dataset.locin){e.preventDefault();locateFromText(e.target.dataset.locin,e.target.value)}});
 $('importFile').addEventListener('change',async e=>{const f=e.target.files[0];if(!f)return;
-  try{const d=normalize(JSON.parse(await f.text())),t=S.t,del=S.deleted;S=d;S.t=t;S.deleted=del;lastNext=null;save(...ALLKEYS);renderAll();fitAll();toast('Respaldo cargado')}catch(err){toast('El archivo no es un respaldo válido')}e.target.value=''});
+  try{const d=normalize(JSON.parse(await f.text())),t=S.t,del=S.deleted;S=d;S.t=t;S.deleted=del;lastNext=null;save(...allKeys());renderAll();fitAll();toast('Respaldo cargado')}catch(err){toast('El archivo no es un respaldo válido')}e.target.value=''});
 $('viewer').onclick=()=>$('viewer').classList.remove('show');
 let toastT;function toast(m){const t=$('toast');t.textContent=m;t.classList.add('show');clearTimeout(toastT);toastT=setTimeout(()=>t.classList.remove('show'),3500)}
 
 /* ---------- Inicio ---------- */
 (async()=>{
-  try{await DB.open();const d=await DB.get('state');if(d)S=normalize(d);routeCache=(await DB.get('routes'))||{}}catch(e){$('saved').textContent='Sin guardado: este navegador no permite almacenar datos'}
+  try{await DB.open();const d=await DB.get(MODES[MODE].db);if(d)S=normalize(d);routeCache=(await DB.get('routes'))||{}}catch(e){$('saved').textContent='Sin guardado: este navegador no permite almacenar datos'}
   renderAll();
   if(allLocs().length) fitAll();
   setTimeout(()=>map.invalidateSize(),200);

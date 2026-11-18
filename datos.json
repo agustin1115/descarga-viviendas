@@ -1,6 +1,16 @@
 {
  "fecha": "2026-11-13",
- "order": null,
+ "order": [
+  1,
+  0,
+  2,
+  3,
+  4,
+  5,
+  6,
+  7,
+  8
+ ],
  "start": {
   "name": "Centro de salud Ing. Allan ",
   "loc": {
@@ -113,7 +123,7 @@
   "houses.6.loc": 1794531375403,
   "houses.6.name": 1794531375403,
   "fecha": 1794531838774,
-  "order": 1794531375403,
+  "order": 1795010521092,
   "start.loc": 1794531375403,
   "start.name": 1794531375403,
   "houses.1.comment": 1794531375403,

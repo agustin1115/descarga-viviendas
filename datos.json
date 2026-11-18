@@ -25,12 +25,7 @@
     "lat": -34.870696,
     "lng": -58.205159
    },
-   "pieces": {
-    "v1": "ok",
-    "v2": "ok",
-    "l1": "ok",
-    "l2": "ok"
-   },
+   "pieces": {},
    "comment": "",
    "surplus": false,
    "surplusDetail": "",
@@ -131,10 +126,10 @@
   "houses.1.surplusDetail": 1794531375403,
   "houses.1.movedTo": 1794531375403,
   "houses.1.from": 1794531375403,
-  "houses.1.pieces.v1": 1795010501726,
-  "houses.1.pieces.v2": 1795010503259,
-  "houses.1.pieces.l1": 1795010504858,
-  "houses.1.pieces.l2": 1795010505425,
+  "houses.1.pieces.v1": 1795010539424,
+  "houses.1.pieces.v2": 1795010539075,
+  "houses.1.pieces.l1": 1795010538574,
+  "houses.1.pieces.l2": 1795010538126,
   "houses.1.pieces.pl1": 1794531375403,
   "houses.1.pieces.pl2": 1794531375403,
   "houses.1.pieces.pm": 1794531375403,
